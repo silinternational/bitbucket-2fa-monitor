@@ -4,10 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ses"
 )
 
 const countPerPage = 500
@@ -15,11 +21,16 @@ const countPerPage = 500
 var workspaceMembersURLPath = "2.0/users/{workspace}/members"
 
 const (
-	envAPIBaseURL     = "API_BASE_URL"
-	envAPIUsername    = "API_USERNAME"
-	envAPIAppPassword = "API_APP_PASSWORD"
-	envAPIWorkspace   = "API_WORKSPACE"
-	envAWSS3Bucket    = "AWS_S3_BUCKET"
+	envAPIBaseURL         = "API_BASE_URL"
+	envAPIUsername        = "API_USERNAME"
+	envAPIAppPassword     = "API_APP_PASSWORD"
+	envAPIWorkspace       = "API_WORKSPACE"
+	envAwsRegion          = "AWS_REGION"
+	envAwsAccessKeyID     = "AWS_ACCESS_KEY_ID"
+	envAwsSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
+	envSesCharset         = "SES_CHARSET"
+	envSesReturnToAddress = "SES_RETURN_TO_ADDRESS"
+	envSesRecipientEmails = "SES_RECIPIENT_EMAILS"
 )
 
 type bitbucketMember struct {
@@ -46,12 +57,13 @@ func (members *bitbucketMembers) getNon2svMembers() []bitbucketMember {
 }
 
 type lambdaConfig struct {
-	APIBaseURL     string `json:"APIBaseURL"`
-	APIUsername    string `json:"APIUsername"`
-	APIAppPassword string `json:"APIAppPassword"`
-	APIWorkspace   string `json:"APIWorkspace"`
-	AWSS3Bucket    string `json:"AWSS3Bucket"`
-	AWSS3Filename  string `json:"AWSS3FileName"`
+	APIBaseURL     string     `json:"APIBaseURL"`
+	APIUsername    string     `json:"APIUsername"`
+	APIAppPassword string     `json:"APIAppPassword"`
+	APIWorkspace   string     `json:"APIWorkspace"`
+	MailConfig     mailConfig `json:"MailConfig"`
+	SESRecipients  string     `json:"SESRecipients"`
+	Debug          bool       `json:"Debug"`
 }
 
 func (c *lambdaConfig) init() error {
@@ -72,11 +84,53 @@ func (c *lambdaConfig) init() error {
 		return err
 	}
 
-	if err := getRequiredString(envAWSS3Bucket, &c.AWSS3Bucket); err != nil {
+	if err := getRequiredString(envSesCharset, &c.MailConfig.CharSet); err != nil {
 		return err
 	}
 
+	if err := getRequiredString(envSesReturnToAddress, &c.MailConfig.ReturnToAddr); err != nil {
+		return err
+	}
+
+	var emails string
+	if err := getRequiredString(envSesRecipientEmails, &emails); err != nil {
+		return err
+	}
+	c.MailConfig.RecipientEmails = strings.Split(emails, " ")
+
+	if err := getRequiredString(envAwsRegion, &c.MailConfig.AWSRegion); err != nil {
+		return err
+	}
+
+	if err := getRequiredString(envAwsAccessKeyID, &c.MailConfig.AWSAccessKeyID); err != nil {
+		return err
+	}
+
+	if err := getRequiredString(envAwsSecretAccessKey, &c.MailConfig.AWSSecretAccessKey); err != nil {
+		return err
+	}
+
+	var debug string
+	var err error
+	if err := getRequiredString(envSesRecipientEmails, &debug); err != nil {
+		return err
+	}
+	c.Debug, err = strconv.ParseBool(debug)
+	if err != nil {
+		c.Debug = false
+	}
+
 	return nil
+}
+
+type mailConfig struct {
+	AWSRegion          string
+	CharSet            string
+	ReturnToAddr       string
+	SubjectText        string
+	RecipientEmails    []string
+	AWSAccessKeyID     string
+	AWSSecretAccessKey string
 }
 
 func getRequiredString(envKey string, configEntry *string) error {
@@ -176,6 +230,77 @@ func getNon2svWorkspaceMembers(config lambdaConfig) ([]bitbucketMember, error) {
 	return allMembers, nil
 }
 
+func sendEmail(config mailConfig, body string) {
+	charSet := config.CharSet
+
+	subject := config.SubjectText
+	subjContent := ses.Content{
+		Charset: &charSet,
+		Data:    &subject,
+	}
+
+	msgContent := ses.Content{
+		Charset: &charSet,
+		Data:    &body,
+	}
+
+	msgBody := ses.Body{
+		Text: &msgContent,
+	}
+
+	emailMsg := ses.Message{}
+	emailMsg.SetSubject(&subjContent)
+	emailMsg.SetBody(&msgBody)
+
+	// Only report the last email error
+	lastError := ""
+	badRecipients := []string{}
+
+	// Send emails to one recipient at a time to avoid one bad email sabotaging it all
+	for _, address := range config.RecipientEmails {
+		err := sendAnEmail(emailMsg, address, config)
+		if err != nil {
+			lastError = err.Error()
+			badRecipients = append(badRecipients, address)
+		}
+	}
+
+	if lastError != "" {
+		addresses := strings.Join(badRecipients, ", ")
+		log.Printf("Error sending Bitbucket 2FA monitor email from %s to: %s\n %s",
+			config.ReturnToAddr, addresses, lastError)
+	}
+}
+
+func sendAnEmail(emailMsg ses.Message, recipient string, config mailConfig) error {
+	recipients := []*string{&recipient}
+
+	input := &ses.SendEmailInput{
+		Destination: &ses.Destination{
+			ToAddresses: recipients,
+		},
+		Message: &emailMsg,
+		Source:  aws.String(config.ReturnToAddr),
+	}
+
+	cfg := &aws.Config{Region: aws.String(config.AWSRegion)}
+	if config.AWSAccessKeyID != "" && config.AWSSecretAccessKey != "" {
+		cfg.Credentials = credentials.NewStaticCredentials(config.AWSAccessKeyID, config.AWSSecretAccessKey, "")
+	}
+	sess, err := session.NewSession(cfg)
+	if err != nil {
+		return fmt.Errorf("error creating AWS session: %s", err)
+	}
+
+	svc := ses.New(sess)
+	result, err := svc.SendEmail(input)
+	if err != nil {
+		return fmt.Errorf("error sending email, result: %s, error: %s", result, err)
+	}
+	log.Printf("alert message sent to %s, message ID: %s", recipient, *result.MessageId)
+	return nil
+}
+
 func handler(config lambdaConfig) error {
 	if err := config.init(); err != nil {
 		return err
@@ -187,18 +312,18 @@ func handler(config lambdaConfig) error {
 	}
 
 	if len(members) > 0 {
-		subject := fmt.Sprintf("%d %s members do not have 2SV enabled", len(members), config.APIWorkspace)
+		config.MailConfig.SubjectText = fmt.Sprintf("%d %s members do not have 2SV enabled", len(members), config.APIWorkspace)
 		var message string
 		for _, member := range members {
 			message += member.DisplayName + " - " + member.Nickname + "\n"
 		}
 
-		// TODO: Add SES mailing capabilities
-		// var c MailConfig
-		// SendEmail(c, message)
-
-		fmt.Printf("%v:\n", subject)
-		fmt.Println(message)
+		if config.Debug {
+			fmt.Printf("%v:\n", config.MailConfig.SubjectText)
+			fmt.Println(message)
+		} else {
+			sendEmail(config.MailConfig, message)
+		}
 	}
 
 	return nil
@@ -220,8 +345,4 @@ func manualRun() {
 func main() {
 	//lambda.Start(handler)
 	manualRun()
-
-	// 	foo := `{"pagelen":50,"values":[{"display_name":"foo","has_2fa_enabled":null,"links":{"hooks":{"href":"foo"},"self":{"href":"foo"},"repositories":{"href":"foo"},"html":{"href":"foo"},"avatar":{"href":"foo"},"snippets":{"href":"foo"}},"nickname":"foo","zoneinfo":null,"account_id":"foo","department":null,"created_on":"foo","is_staff":false,"location":null,"account_status":"foo","organization":null,"job_title":"foo","type":"foo","properties":{},"uuid":"foo"}],"page":1,"size":27}`
-	// 	bar := []byte(foo)
-	// 	d, e := json.Unmarshal(bar, BitbucketMembers)
 }
