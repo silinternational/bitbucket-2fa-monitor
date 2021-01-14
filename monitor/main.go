@@ -18,7 +18,7 @@ import (
 
 const countPerPage = 500
 
-var workspaceMembersURLPath = "2.0/users/{workspace}/members"
+var workspaceMembersURLPath = "/2.0/users/{workspace}/members"
 
 const (
 	envAPIBaseURL         = "API_BASE_URL"
@@ -110,11 +110,8 @@ func (c *lambdaConfig) init() error {
 		return err
 	}
 
-	var debug string
 	var err error
-	if err := getRequiredString(envSesRecipientEmails, &debug); err != nil {
-		return err
-	}
+	debug := os.Getenv("DEBUG")
 	c.Debug, err = strconv.ParseBool(debug)
 	if err != nil {
 		c.Debug = false
@@ -151,7 +148,7 @@ func callAPI(urlPath string, config lambdaConfig, queryParams map[string]string)
 	var err error
 	var req *http.Request
 
-	url := config.APIBaseURL + "/" + urlPath
+	url := config.APIBaseURL + urlPath
 
 	req, err = http.NewRequest("GET", url, nil)
 	if err != nil {
