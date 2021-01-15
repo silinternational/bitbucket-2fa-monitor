@@ -1,0 +1,46 @@
+service: bitbucket-2fa-monitor
+
+provider:
+  name: aws
+  runtime: go1.x
+  stage: prod
+  timeout: 600
+  versionFunctions: false
+  memorySize: 512
+  region: us-east-1
+
+  # you can define service wide environment variables here
+  environment:
+    stage: ${self:custom.stage}
+    region: ${self:custom.region}
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  region: ${opt:region, self:provider.region}
+
+package:
+  exclude:
+    - ./**
+  include:
+    - ./bin/**
+
+functions:
+  monitor:
+    environment:
+      API_BASE_URL: ${env:API_BASE_URL}
+      API_USERNAME: ${env:API_USERNAME}
+      API_APP_PASSWORD: ${env:API_APP_PASSWORD}
+      API_WORKSPACE: ${env:API_WORKSPACE}
+      SES_CHARSET: ${env:SES_CHARSET}
+      SES_RETURN_TO_ADDRESS: ${env:SES_RETURN_TO_ADDRESS}
+      SES_SUBJECT_TEXT: ${env:SES_SUBJECT_TEXT}
+      SES_RECIPIENT_EMAILS: ${env:SES_RECIPIENT_EMAILS}
+      AWS_REGION: ${env:AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY}
+    handler: bin/monitor
+    timeout: 600
+    events:
+       # cron(Minutes Hours Day-of-month Month Day-of-week Year)
+       # One of the day-of-month or day-of-week values must be a question mark (?)
+       - schedule: cron(20 2 1 * ? *)
