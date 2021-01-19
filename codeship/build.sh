@@ -7,4 +7,4 @@ set -e
 set -x
 
 # Build all the things
-go build -ldflags="-s -w" -o bin/monitor  monitor/main.go
+go build -ldflags="-s -w" -o bin/monitor  ./monitor
