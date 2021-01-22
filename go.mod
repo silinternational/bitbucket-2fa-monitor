@@ -1,4 +1,4 @@
-module reporter
+module github.com/silinternational/bitbucket-2fa-monitor
 
 go 1.15
 
