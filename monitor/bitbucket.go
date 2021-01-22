@@ -27,7 +27,7 @@ func (members *bitbucketMembers) getNon2svMembers() []bitbucketMember {
 	var non2svMembers []bitbucketMember
 
 	for _, member := range members.Values {
-		if member.Has2faEnabled == nil {
+		if member.Has2faEnabled == nil || *member.Has2faEnabled == false {
 			non2svMembers = append(non2svMembers, member)
 		}
 	}
@@ -109,8 +109,6 @@ func (api *bitbucketAPI) getNon2svWorkspaceMembers() ([]bitbucketMember, error) 
 	for i := 1; ; i++ {
 		members, err := api.getWorkspaceMembersPage(i)
 		if err != nil {
-			fmt.Println("\n", err)
-
 			err = fmt.Errorf("error fetching page %v ... %s", i, err)
 			return nil, err
 		}
