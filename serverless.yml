@@ -8,6 +8,11 @@ provider:
   versionFunctions: false
   memorySize: 512
   region: us-east-1
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+      - "ses:SendEmail"
+      Resource: "*"
 
   # you can define service wide environment variables here
   environment:
