@@ -1,4 +1,4 @@
-FROM golang:1.14.13
+FROM golang:1.15
 
 # Install packages
 RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
