@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 const countPerPage = 500
@@ -63,7 +64,7 @@ func (api *bitbucketAPI) callAPI(urlPath string, queryParams map[string]string) 
 	}
 	req.URL.RawQuery = q.Encode()
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: time.Second * 10}
 
 	resp, err := client.Do(req)
 
