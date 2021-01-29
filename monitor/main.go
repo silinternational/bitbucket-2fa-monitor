@@ -10,6 +10,8 @@ import (
 )
 
 const (
+	envSep = ","
+
 	envAPIBaseURL     = "API_BASE_URL"
 	envAPIUsername    = "API_USERNAME"
 	envAPIAppPassword = "API_APP_PASSWORD"
@@ -23,122 +25,91 @@ const (
 	envSesRecipientEmails = "SES_RECIPIENT_EMAILS"
 )
 
-type lambdaConfig struct {
-	BitbucketAPI bitbucketAPI `json:"BitbucketAPI"`
-	MailConfig   mail         `json:"MailConfig"`
-	Debug        bool         `json:"Debug"`
+var debug = getEnvironmentVariableAsBool("DEBUG")
+
+type appContext struct {
+	API    bitbucketAPI `json:"BitbucketAPI"`
+	Mailer mail         `json:"MailConfig"`
 }
 
-func (c *lambdaConfig) init() error {
-	if err := getRequiredString(envAPIBaseURL, &c.BitbucketAPI.BaseURL); err != nil {
-		return err
+func (app *appContext) init() {
+	app.API = bitbucketAPI{
+		BaseURL:     getRequiredEnvironmentVariable(envAPIBaseURL),
+		Workspace:   getRequiredEnvironmentVariable(envAPIWorkspace),
+		Username:    getRequiredEnvironmentVariable(envAPIUsername),
+		AppPassword: getRequiredEnvironmentVariable(envAPIAppPassword),
+	}
+	app.Mailer = mail{
+		CharSet:            getRequiredEnvironmentVariable(envSesCharset),
+		ReturnToAddr:       getRequiredEnvironmentVariable(envSesReturnToAddress),
+		RecipientEmails:    getRequiredEnvironmentVariableAsSlice(envSesRecipientEmails, envSep),
+		AWSRegion:          getRequiredEnvironmentVariable(envAwsRegion),
+		AWSAccessKeyID:     getRequiredEnvironmentVariable(envAwsAccessKeyID),
+		AWSSecretAccessKey: getRequiredEnvironmentVariable(envAwsSecretAccessKey),
 	}
 
-	if err := getRequiredString(envAPIWorkspace, &c.BitbucketAPI.Workspace); err != nil {
-		return err
-	}
-	workspaceMembersURLPath = strings.ReplaceAll(workspaceMembersURLPath, "{workspace}", c.BitbucketAPI.Workspace)
+	workspaceMembersURLPath = strings.ReplaceAll(workspaceMembersURLPath, "{workspace}", app.API.Workspace)
+}
 
-	if err := getRequiredString(envAPIUsername, &c.BitbucketAPI.Username); err != nil {
-		return err
-	}
-
-	if err := getRequiredString(envAPIAppPassword, &c.BitbucketAPI.AppPassword); err != nil {
-		return err
-	}
-
-	if err := getRequiredString(envSesCharset, &c.MailConfig.CharSet); err != nil {
-		return err
-	}
-
-	if err := getRequiredString(envSesReturnToAddress, &c.MailConfig.ReturnToAddr); err != nil {
-		return err
-	}
-
-	var emails string
-	if err := getRequiredString(envSesRecipientEmails, &emails); err != nil {
-		return err
-	}
-	c.MailConfig.RecipientEmails = strings.Split(emails, " ")
-
-	if err := getRequiredString(envAwsRegion, &c.MailConfig.AWSRegion); err != nil {
-		return err
-	}
-
-	if err := getRequiredString(envAwsAccessKeyID, &c.MailConfig.AWSAccessKeyID); err != nil {
-		return err
-	}
-
-	if err := getRequiredString(envAwsSecretAccessKey, &c.MailConfig.AWSSecretAccessKey); err != nil {
-		return err
-	}
-
-	var err error
-	debug := os.Getenv("DEBUG")
-	c.Debug, err = strconv.ParseBool(debug)
+func getEnvironmentVariableAsBool(key string) bool {
+	value := os.Getenv(key)
+	result, err := strconv.ParseBool(value)
 	if err != nil {
-		c.Debug = false
+		result = false
 	}
-
-	return nil
+	return result
 }
 
-func getRequiredString(envKey string, configEntry *string) error {
-	if *configEntry != "" {
-		return nil
-	}
-
-	value := os.Getenv(envKey)
+func getRequiredEnvironmentVariable(key string) string {
+	value := os.Getenv(key)
 	if value == "" {
-		return fmt.Errorf("required value missing for environment variable %s", envKey)
+		os.Stderr.WriteString("Required value missing for environment variable: " + key + "\n")
+		os.Exit(1)
 	}
-	*configEntry = value
 
-	return nil
+	return value
 }
 
-func handler(config lambdaConfig) error {
-	if err := config.init(); err != nil {
-		return err
-	}
+func getRequiredEnvironmentVariableAsSlice(key string, sep string) []string {
+	value := getRequiredEnvironmentVariable(key)
+	return strings.Split(value, sep)
+}
 
-	members, err := config.BitbucketAPI.getNon2svWorkspaceMembers()
+func handler(app appContext) error {
+	app.init()
+
+	members, err := app.API.getNon2svWorkspaceMembers()
 	if err != nil {
 		return err
 	}
 
 	if len(members) > 0 {
-		config.MailConfig.SubjectText = fmt.Sprintf("%d %s members do not have 2SV enabled", len(members), config.BitbucketAPI.Workspace)
+		app.Mailer.SubjectText = fmt.Sprintf("%d %s members do not have 2SV enabled", len(members), app.API.Workspace)
 		var message string
 		for _, member := range members {
 			message += member.DisplayName + " - " + member.Nickname + "\n"
 		}
 
-		if config.Debug {
-			fmt.Printf("%v:\n", config.MailConfig.SubjectText)
+		if debug {
+			fmt.Printf("%v:\n", app.Mailer.SubjectText)
 			fmt.Println(message)
 		} else {
-			config.MailConfig.sendEmail(message)
+			app.Mailer.sendEmail(message)
 		}
 	}
 
 	return nil
 }
 
-func manualRun() {
-	var config lambdaConfig
-	if err := config.init(); err != nil {
-		panic("error initializing config ... " + err.Error())
-	}
-
-	if err := handler(config); err != nil {
-		panic("error calling handler ... " + err.Error())
-	}
-
-	fmt.Printf("Success!\n")
-}
-
 func main() {
-	lambda.Start(handler)
-	//manualRun()
+	if debug {
+		var app appContext
+		if err := handler(app); err != nil {
+			panic("error calling handler ... " + err.Error())
+		}
+
+		fmt.Printf("Success!\n")
+	} else {
+		lambda.Start(handler)
+	}
 }
