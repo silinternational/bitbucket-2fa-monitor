@@ -17,9 +17,6 @@ const (
 	envAPIAppPassword = "API_APP_PASSWORD"
 	envAPIWorkspace   = "API_WORKSPACE"
 
-	envAwsRegion          = "AWS_REGION"
-	envAwsAccessKeyID     = "AWS_ACCESS_KEY_ID"
-	envAwsSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
 	envSesCharset         = "SES_CHARSET"
 	envSesReturnToAddress = "SES_RETURN_TO_ADDRESS"
 	envSesRecipientEmails = "SES_RECIPIENT_EMAILS"
@@ -40,12 +37,9 @@ func (app *appContext) init() {
 		AppPassword: getRequiredEnvironmentVariable(envAPIAppPassword),
 	}
 	app.Mailer = mail{
-		CharSet:            getRequiredEnvironmentVariable(envSesCharset),
-		ReturnToAddr:       getRequiredEnvironmentVariable(envSesReturnToAddress),
-		RecipientEmails:    getRequiredEnvironmentVariableAsSlice(envSesRecipientEmails, envSep),
-		AWSRegion:          getRequiredEnvironmentVariable(envAwsRegion),
-		AWSAccessKeyID:     getRequiredEnvironmentVariable(envAwsAccessKeyID),
-		AWSSecretAccessKey: getRequiredEnvironmentVariable(envAwsSecretAccessKey),
+		CharSet:         getRequiredEnvironmentVariable(envSesCharset),
+		ReturnToAddr:    getRequiredEnvironmentVariable(envSesReturnToAddress),
+		RecipientEmails: getRequiredEnvironmentVariableAsSlice(envSesRecipientEmails, envSep),
 	}
 
 	workspaceMembersURLPath = strings.ReplaceAll(workspaceMembersURLPath, "{workspace}", app.API.Workspace)

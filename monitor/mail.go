@@ -6,19 +6,16 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ses"
 )
 
 type mail struct {
-	AWSRegion          string
-	CharSet            string
-	ReturnToAddr       string
-	SubjectText        string
-	RecipientEmails    []string
-	AWSAccessKeyID     string
-	AWSSecretAccessKey string
+	AWSRegion       string
+	CharSet         string
+	ReturnToAddr    string
+	SubjectText     string
+	RecipientEmails []string
 }
 
 func (m *mail) sendEmail(body string) {
@@ -74,11 +71,7 @@ func (m *mail) sendAnEmail(emailMsg ses.Message, recipient string) error {
 		Source:  aws.String(m.ReturnToAddr),
 	}
 
-	cfg := &aws.Config{Region: aws.String(m.AWSRegion)}
-	if m.AWSAccessKeyID != "" && m.AWSSecretAccessKey != "" {
-		cfg.Credentials = credentials.NewStaticCredentials(m.AWSAccessKeyID, m.AWSSecretAccessKey, "")
-	}
-	sess, err := session.NewSession(cfg)
+	sess, err := session.NewSession()
 	if err != nil {
 		return fmt.Errorf("error creating AWS session: %s", err)
 	}

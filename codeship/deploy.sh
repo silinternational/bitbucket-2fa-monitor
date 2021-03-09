@@ -14,9 +14,6 @@ export API_APP_PASSWORD="${API_APP_PASSWORD}"
 export API_WORKSPACE="${API_WORKSPACE}"
 export SES_RETURN_TO_ADDRESS="${SES_RETURN_TO_ADDRESS}"
 export SES_RECIPIENT_EMAILS="${SES_RECIPIENT_EMAILS}"
-export AWS_REGION="${AWS_REGION}"
-export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
 
 # Deploy
 [[ -z "$1" ]] && { echo "Error: Environment not specified"; exit 1; }
