@@ -39,9 +39,6 @@ functions:
       SES_CHARSET: ${env:SES_CHARSET}
       SES_RETURN_TO_ADDRESS: ${env:SES_RETURN_TO_ADDRESS}
       SES_RECIPIENT_EMAILS: ${env:SES_RECIPIENT_EMAILS}
-      AWS_REGION: ${env:AWS_REGION}
-      AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY}
     handler: bin/monitor
     timeout: 600
     events:
