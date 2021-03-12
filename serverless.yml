@@ -1,4 +1,4 @@
-service: bitbucket-2fa-monitor
+service: bitbucket-2fa-mon
 
 provider:
   name: aws
@@ -44,4 +44,4 @@ functions:
     events:
        # cron(Minutes Hours Day-of-month Month Day-of-week Year)
        # One of the day-of-month or day-of-week values must be a question mark (?)
-       - schedule: cron(20 2 1 * ? *)
+       - schedule: cron(20 2 ? * 1 *)

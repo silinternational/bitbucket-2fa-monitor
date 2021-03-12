@@ -1,3 +1,5 @@
 *.aes
 *.env
 bin/
+.idea/
+.serverless/
