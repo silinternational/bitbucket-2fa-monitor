@@ -11,7 +11,7 @@ import (
 
 const countPerPage = 500
 
-var workspaceMembersURLPath = "/2.0/workspaces/{workspace}/members?fields=values.user.display_name,values.user.nickname,values.user.has_2fa_enabled"
+var workspaceMembersURLPath = "/2.0/workspaces/{workspace}/members?fields=size,values.user.display_name,values.user.nickname,values.user.has_2fa_enabled"
 
 type bitbucketMember struct {
 	DisplayName   string `json:"display_name"`
