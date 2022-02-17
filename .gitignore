@@ -3,3 +3,5 @@
 bin/
 .idea/
 .serverless/
+.terraform/
+remote.tf
