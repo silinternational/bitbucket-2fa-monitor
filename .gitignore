@@ -4,4 +4,4 @@ bin/
 .idea/
 .serverless/
 .terraform/
-remote.tf
+remote-tfc.tf
