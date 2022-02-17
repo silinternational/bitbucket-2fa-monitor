@@ -11,7 +11,7 @@ import (
 
 const countPerPage = 500
 
-var workspaceMembersURLPath = "/2.0/users/{workspace}/members"
+var workspaceMembersURLPath = "/2.0/workspaces/{workspace}/members?fields=values.user.display_name,values.user.nickname,values.user.has_2fa_enabled"
 
 type bitbucketMember struct {
 	DisplayName   string `json:"display_name"`
@@ -20,16 +20,18 @@ type bitbucketMember struct {
 }
 
 type bitbucketMembers struct {
-	Values []bitbucketMember `json:"values"`
-	Size   int               `json:"size"`
+	Values []struct {
+		User bitbucketMember `json:"user"`
+	} `json:"values"`
+	Size int `json:"size"`
 }
 
 func (members *bitbucketMembers) getNon2svMembers() []bitbucketMember {
 	var non2svMembers []bitbucketMember
 
-	for _, member := range members.Values {
-		if member.Has2faEnabled == nil || *member.Has2faEnabled == false {
-			non2svMembers = append(non2svMembers, member)
+	for _, value := range members.Values {
+		if value.User.Has2faEnabled == nil || *value.User.Has2faEnabled == false {
+			non2svMembers = append(non2svMembers, value.User)
 		}
 	}
 
@@ -43,7 +45,7 @@ type bitbucketAPI struct {
 	Workspace   string `json:"APIWorkspace"`
 }
 
-func (api *bitbucketAPI) callAPI(urlPath string, queryParams map[string]string) (*http.Response, error) {
+func (api *bitbucketAPI) callAPI(urlPath string, queryParams map[string]string) ([]byte, error) {
 	var err error
 	var req *http.Request
 
@@ -67,16 +69,18 @@ func (api *bitbucketAPI) callAPI(urlPath string, queryParams map[string]string) 
 	client := &http.Client{Timeout: time.Second * 10}
 
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
 		return nil, fmt.Errorf("error making http request: %s", err)
 	} else if resp.StatusCode >= 300 {
 		err := fmt.Errorf("API returned an error. URL: %s, Code: %v, Status: %s Body: %s",
-			url, resp.StatusCode, resp.Status, resp.Body)
+			url, resp.StatusCode, resp.Status, bodyBytes)
 		return nil, err
 	}
 
-	return resp, nil
+	return bodyBytes, nil
 }
 
 func (api *bitbucketAPI) getWorkspaceMembersPage(pageNum int) (*bitbucketMembers, error) {
@@ -86,17 +90,12 @@ func (api *bitbucketAPI) getWorkspaceMembersPage(pageNum int) (*bitbucketMembers
 	}
 
 	// Make http call
-	resp, err := api.callAPI(workspaceMembersURLPath, queryParams)
+	bodyBytes, err := api.callAPI(workspaceMembersURLPath, queryParams)
 	if err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	bodyBytes, _ := ioutil.ReadAll(resp.Body)
-
 	var pageMembers bitbucketMembers
-	// fmt.Println("\n", string(bodyBytes))
-
 	if err := json.Unmarshal(bodyBytes, &pageMembers); err != nil {
 		return nil, fmt.Errorf("error decoding response json for workspace members: %s", err)
 	}
