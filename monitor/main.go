@@ -76,6 +76,9 @@ func handler(app appContext) error {
 
 	members, err := app.API.getNon2svWorkspaceMembers()
 	if err != nil {
+		if !debug {
+			app.Mailer.sendEmail(err.Error())
+		}
 		return err
 	}
 
