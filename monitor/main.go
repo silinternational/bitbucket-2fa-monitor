@@ -36,10 +36,12 @@ func (app *appContext) init() {
 		Username:    getRequiredEnvironmentVariable(envAPIUsername),
 		AppPassword: getRequiredEnvironmentVariable(envAPIAppPassword),
 	}
-	app.Mailer = mail{
-		CharSet:         getRequiredEnvironmentVariable(envSesCharset),
-		ReturnToAddr:    getRequiredEnvironmentVariable(envSesReturnToAddress),
-		RecipientEmails: getRequiredEnvironmentVariableAsSlice(envSesRecipientEmails, envSep),
+	if !debug {
+		app.Mailer = mail{
+			CharSet:         getRequiredEnvironmentVariable(envSesCharset),
+			ReturnToAddr:    getRequiredEnvironmentVariable(envSesReturnToAddress),
+			RecipientEmails: getRequiredEnvironmentVariableAsSlice(envSesRecipientEmails, envSep),
+		}
 	}
 
 	workspaceMembersURLPath = strings.ReplaceAll(workspaceMembersURLPath, "{workspace}", app.API.Workspace)
@@ -74,6 +76,9 @@ func handler(app appContext) error {
 
 	members, err := app.API.getNon2svWorkspaceMembers()
 	if err != nil {
+		if !debug {
+			app.Mailer.sendEmail(err.Error())
+		}
 		return err
 	}
 
