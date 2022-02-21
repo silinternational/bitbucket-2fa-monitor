@@ -12,7 +12,7 @@ RUN mkdir -p /app
 COPY ./ /app/
 WORKDIR /app
 
-RUN npm install -g serverless && npm install
+RUN npm install -g serverless@2 && npm install
 
 WORKDIR /app
 
