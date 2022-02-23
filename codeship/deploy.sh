@@ -17,4 +17,4 @@ export SES_RECIPIENT_EMAILS="${SES_RECIPIENT_EMAILS}"
 
 # Deploy
 [[ -z "$1" ]] && { echo "Error: Environment not specified"; exit 1; }
-serverless deploy -v --stage $1
+serverless deploy --verbose --stage $1
