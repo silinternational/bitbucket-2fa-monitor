@@ -1,34 +1,28 @@
 service: bitbucket-2fa-mon
 
+frameworkVersion: ^3.2.0
+
 provider:
   name: aws
   runtime: go1.x
   stage: prod
   timeout: 600
   versionFunctions: false
-  memorySize: 512
+  memorySize: 128
   region: us-east-1
   logRetentionInDays: 30
-  iamRoleStatements:
-    - Effect: "Allow"
-      Action:
-      - "ses:SendEmail"
-      Resource: "*"
-
-  # you can define service wide environment variables here
-  environment:
-    stage: ${self:custom.stage}
-    region: ${self:custom.region}
-
-custom:
-  stage: ${opt:stage, self:provider.stage}
-  region: ${opt:region, self:provider.region}
+  iam:
+    role:
+      statements:
+      - Effect: "Allow"
+        Action:
+        - "ses:SendEmail"
+        Resource: "*"
 
 package:
-  exclude:
-    - ./**
-  include:
-    - ./bin/**
+  patterns:
+    - '!./**'
+    - './bin/**'
 
 functions:
   monitor:
