@@ -15,6 +15,9 @@ export API_WORKSPACE="${API_WORKSPACE}"
 export SES_RETURN_TO_ADDRESS="${SES_RETURN_TO_ADDRESS}"
 export SES_RECIPIENT_EMAILS="${SES_RECIPIENT_EMAILS}"
 
+# Print the Serverless version in the logs
+serverless --version
+
 # Deploy
 [[ -z "$1" ]] && { echo "Error: Environment not specified"; exit 1; }
 serverless deploy --verbose --stage $1
