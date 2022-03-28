@@ -6,12 +6,10 @@ RUN apt-get install -y nodejs
 
 RUN alias ll="ls -al"
 
-# Copy in source and install deps
 RUN mkdir -p /app
 WORKDIR /app
 
 RUN npm --no-fund install -g serverless@3
 
-COPY ./ /app/
-
+COPY ./ .
 RUN go get ./...
