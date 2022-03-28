@@ -10,6 +10,8 @@ import (
 )
 
 const (
+	appName = "bitbucket-2fa-monitor"
+
 	envSep = ","
 
 	envAPIBaseURL     = "API_BASE_URL"
@@ -83,8 +85,8 @@ func handler(app appContext) error {
 	}
 
 	if len(members) > 0 {
-		app.Mailer.SubjectText = fmt.Sprintf("%d %s members do not have 2SV enabled", len(members), app.API.Workspace)
-		var message string
+		app.Mailer.SubjectText = appName + " alert"
+		message := fmt.Sprintf("%d %s members do not have 2SV enabled", len(members), app.API.Workspace)
 		for _, member := range members {
 			message += member.DisplayName + " - " + member.Nickname + "\n"
 		}
