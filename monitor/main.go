@@ -86,7 +86,7 @@ func handler(app appContext) error {
 
 	if len(members) > 0 {
 		app.Mailer.SubjectText = appName + " alert"
-		message := fmt.Sprintf("%d %s members do not have 2SV enabled", len(members), app.API.Workspace)
+		message := fmt.Sprintf("%d %s members do not have 2SV enabled\n", len(members), app.API.Workspace)
 		for _, member := range members {
 			message += member.DisplayName + " - " + member.Nickname + "\n"
 		}
