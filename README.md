@@ -26,10 +26,10 @@ TBD
 ### Using Goland
 
 1. Edit Run/Debug Configurations
-1. Run kind: Directory
-1. Directory: /(your path)/bitbucket-2fa-monitor/monitor
-1. Output directory: /(your path)/bitbucket-2fa-monitor/bin
-1. Environment:
+2. Run kind: Directory
+3. Directory: /(your path)/bitbucket-2fa-monitor/monitor
+4. Output directory: /(your path)/bitbucket-2fa-monitor/bin
+5. Environment:
 
   - API_WORKSPACE=(your workspace)
   - API_USERNAME=(your username)
