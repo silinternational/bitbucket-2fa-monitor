@@ -1,15 +1,11 @@
-FROM golang:1.17
+FROM golang:1.21
 
-# Install packages
-RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
-RUN apt-get install -y nodejs
-
-RUN alias ll="ls -al"
+RUN curl -o- -L https://slss.io/install | VERSION=3.34.0 bash && \
+  mv $HOME/.serverless/bin/serverless /usr/local/bin && \
+  ln -s /usr/local/bin/serverless /usr/local/bin/sls
 
 RUN mkdir -p /app
 WORKDIR /app
-
-RUN npm --no-fund install -g serverless@3
 
 COPY ./ .
 RUN go get ./...
